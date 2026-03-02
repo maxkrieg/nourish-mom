@@ -47,15 +47,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && isAdminRoute) {
-    // Check role via custom claim or DB — use metadata set on registration
-    const role = user.user_metadata?.role as string | undefined
-    if (role !== 'ADMIN') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/menu'
-      return NextResponse.redirect(url)
-    }
-  }
+  // Role check for admin routes is handled in the admin layout (DB lookup).
+  // The proxy only enforces authentication, not authorization.
 
   return supabaseResponse
 }
