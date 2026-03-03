@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useOrder } from './OrderContext'
 import { toast } from 'sonner'
 
@@ -15,6 +15,7 @@ const FREQUENCY_LABELS: Record<string, string> = {
 export function OrderReview() {
   const router = useRouter()
   const { order } = useOrder()
+  const [loading, setLoading] = useState(false)
 
   // Guard: if context is empty (e.g. direct nav or page refresh), send back to start
   useEffect(() => {
@@ -27,6 +28,44 @@ export function OrderReview() {
   if (order.items.length === 0) return null
 
   const subtotal = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  async function handleCheckout() {
+    if (!order.startDate || !order.deliveryWindowId || !order.frequency) {
+      toast.error('Incomplete order. Please go back and fill in all fields.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menuItems: order.items.map(({ menuItemId, quantity }) => ({ menuItemId, quantity })),
+          deliveryWindowId: order.deliveryWindowId,
+          frequency: order.frequency,
+          durationWeeks: order.durationWeeks,
+          startDate: order.startDate.toISOString(),
+          specialNotes: order.specialNotes || undefined,
+        }),
+      })
+
+      const json = await res.json()
+
+      if (!res.ok || !json.data?.url) {
+        toast.error(json.error ?? 'Failed to create checkout session. Please try again.')
+        return
+      }
+
+      window.location.href = json.data.url
+      // Leave loading=true — browser is navigating to Stripe
+      return
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -116,16 +155,17 @@ export function OrderReview() {
       <div className="sticky bottom-0 bg-white border-t border-neutral-border -mx-6 px-6 py-4 flex items-center justify-between">
         <button
           onClick={() => router.back()}
-          className="text-sm text-neutral-muted hover:text-neutral-text transition-colors"
+          disabled={loading}
+          className="text-sm text-neutral-muted hover:text-neutral-text transition-colors disabled:opacity-40"
         >
           ← Back
         </button>
         <button
-          disabled
-          className="bg-accent text-white rounded-xl px-6 py-2.5 text-sm font-semibold opacity-60 cursor-not-allowed"
-          title="Payment coming in next step"
+          onClick={handleCheckout}
+          disabled={loading}
+          className="bg-pink text-white rounded-xl px-6 py-2.5 text-sm font-semibold hover:bg-pink-dark disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
         >
-          Proceed to Payment
+          {loading ? 'Redirecting…' : 'Proceed to Payment'}
         </button>
       </div>
     </div>
