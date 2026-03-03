@@ -163,7 +163,7 @@ export function OrderReview() {
         <button
           onClick={handleCheckout}
           disabled={loading}
-          className="bg-pink text-white rounded-xl px-6 py-2.5 text-sm font-semibold hover:bg-pink-dark disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          className="bg-teal text-white rounded-xl px-6 py-2.5 text-sm font-semibold hover:bg-teal/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Redirecting…' : 'Proceed to Payment'}
         </button>

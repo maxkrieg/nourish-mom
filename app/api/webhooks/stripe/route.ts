@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+import { sendOrderConfirmation } from '@/lib/resend'
 
 // Must use raw body for Stripe signature verification
 export const dynamic = 'force-dynamic'
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     // Create order
-    await prisma.order.create({
+    const order = await prisma.order.create({
       data: {
         userId: metadata.userId,
         deliveryWindowId: payload.deliveryWindowId,
@@ -94,9 +95,24 @@ export async function POST(request: Request) {
           })),
         },
       },
+      include: {
+        items: { include: { menuItem: { select: { name: true, price: true } } } },
+        deliveryWindow: { select: { label: true } },
+        user: { select: { email: true, profile: { select: { deliveryAddress: true } } } },
+      },
     })
 
     console.log('Order created for session', session.id)
+
+    // Send confirmation email — failure must not break order creation
+    const customerEmail = session.customer_email ?? order.user.email
+    if (customerEmail) {
+      await sendOrderConfirmation({
+        to: process.env.MOCK_EMAIL_FOR_TESTING ?? customerEmail,
+        order,
+        customerName: null,
+      })
+    }
   }
 
   return NextResponse.json({ received: true })
