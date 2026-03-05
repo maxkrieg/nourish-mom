@@ -47,6 +47,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Redirect authenticated users away from the landing page
+  if (user && pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/menu'
+    return NextResponse.redirect(url)
+  }
+
   // Role check for admin routes is handled in the admin layout (DB lookup).
   // The proxy only enforces authentication, not authorization.
 
