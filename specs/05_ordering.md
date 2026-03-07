@@ -1,73 +1,143 @@
-# Domain: Ordering & Scheduling
-_Always read `00_project_brief.md` first._
+# Domain: Ordering
+_Always read `00_project_brief.md` and `09_design.md` first._
+
+## Overview
+The order flow is a simple one-and-done purchase. The customer selects meals on the menu page, adds an optional note, reviews their order, and pays. There are no recurring deliveries, delivery windows, frequency settings, or start dates.
 
 ## User Stories
-- As a customer, I want to select a preferred delivery time range so that meals arrive at a time that works for me.
-- As a customer, I want to choose how frequently I receive deliveries so that the service fits my weekly routine.
-- As a customer, I want to set how long I want the service to run so that I can plan for my full recovery period.
 - As a customer, I want to add a special note to my order so that I can communicate specific instructions to the kitchen.
-- As a customer, I want to review a summary of my order and schedule before confirming so that I can verify everything is correct.
+- As a customer, I want to review a summary of my full order before confirming so that I can verify everything is correct before paying.
 
-## Pages to Build
-- `/order` — Multi-step order and scheduling flow
-- `/order/review` — Order review page before payment
+## Pages
+- `/order` — Step 2: Optional notes
+- `/order/review` — Step 3: Full order review before payment
 
-## Order Flow (Multi-Step)
+## Step Indicator
+```
+[1 Meals ✓] → [2 Notes] → [3 Review]
+```
+Step 1 links back to `/menu`. Current step highlighted in teal.
 
-Implement as a stepped form. State can be held in React context or a URL query param approach.
+## Guard: Empty Order
+- On load of `/order`, check if `OrderContext.items` is empty
+- If empty, redirect to `/menu` immediately
 
-### Step 1 — Select Meals
-- Show available `MenuItem` list (available only)
-- Customer selects one or more items and quantities
-- Show running count/summary in a sticky footer
+---
 
-### Step 2 — Delivery Schedule
-- **Start date:** Date picker (only shows operating days based on `OperatingSchedule`)
-- **Delivery window:** Radio select from active `DeliveryWindow` records (fetched from API)
-- **Frequency:** Radio select — Daily, 3x per week, Twice per week, Weekly
-- **Duration:** Dropdown — 1 week, 2 weeks, 3 weeks, 4 weeks
+## Step 2 — Notes (`/order`)
+A single, minimal page.
 
-### Step 3 — Special Notes
-- Optional free-text field
-- "Continue to Review" button
+### Fields
+- **Special notes:** Optional textarea — "Any instructions for the kitchen? (allergies, preferences, access notes)"
+- Character limit: 500
 
-### Step 4 — Review (`/order/review`)
-- Display full order summary:
-  - Selected meals and quantities
-  - Delivery window, frequency, duration, start date
-  - Special notes
-  - Estimated total (calculated client-side: not final until Stripe confirms)
-- "Proceed to Payment" button → initiates Stripe Checkout session
+### Navigation
+- Back button → `/menu` (order context preserved)
+- "Review My Order" button → `/order/review`
+- "Skip" link → `/order/review` (if user doesn't want to add notes)
+
+---
+
+## Step 3 — Review (`/order/review`)
+
+### Display
+- **Meals:** list of selected items with name, quantity, and per-item price
+- **Special notes:** shown if provided, otherwise "None"
+- **Order total:** sum of all item prices × quantities
+- **Payment note:** "You will be charged [total] upon confirmation"
+
+### Navigation
+- Back button → `/order` (preserves notes)
+- "Proceed to Payment" button → calls `POST /api/checkout` → redirects to Stripe Checkout
+
+---
+
+## Prisma Schema Changes
+Simplify the `Order` model — remove all scheduling fields:
+
+```prisma
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  status          OrderStatus @default(PENDING)
+  specialNotes    String?
+  stripePaymentId String?
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+```
+
+**Remove entirely from schema:**
+- `DeliveryWindow` model
+- `OperatingSchedule` model
+- `Frequency` enum
+- Fields removed from `Order`: `deliveryWindowId`, `frequency`, `durationWeeks`, `startDate`
+
+Run `npx prisma db push` after updating the schema.
+
+---
+
+## OrderContext Simplification
+Remove all scheduling fields. The context only needs to track meals and notes:
+
+```ts
+type OrderItem = {
+  menuItemId: string
+  name: string
+  price: number
+  quantity: number
+}
+
+type OrderContextType = {
+  items: OrderItem[]
+  specialNotes: string
+  addItem: (item: OrderItem) => void
+  removeItem: (menuItemId: string) => void
+  updateQuantity: (menuItemId: string, quantity: number) => void
+  setSpecialNotes: (notes: string) => void
+  clearOrder: () => void
+  totalItems: number
+  orderTotal: number
+}
+```
+
+---
 
 ## API Routes
 
-### `GET /api/delivery-windows`
-- Auth: not required
-- Returns all active `DeliveryWindow` records
-- Response: `{ data: DeliveryWindow[] }`
-
-### `GET /api/operating-schedule`
-- Auth: not required
-- Returns all `OperatingSchedule` records
-- Response: `{ data: OperatingSchedule[] }`
-
 ### `POST /api/orders`
 - Auth: required (customer)
-- Called after Stripe payment confirmation (via webhook — see Payments domain)
-- Body: `{ menuItems: [{ menuItemId, quantity }], deliveryWindowId, frequency, durationWeeks, startDate, specialNotes }`
-- Validate slot capacity: count existing orders for the window on the start date; reject if at or above capacity
+- Called from Stripe webhook after payment confirmation — not directly by customer
+- Body: `{ menuItems: [{ menuItemId, quantity }], specialNotes }`
 - Create `Order` and `OrderItem` records
+- Set `stripePaymentId` to the Stripe session ID
 - Response: `{ data: order }`
 
+### Remove these routes entirely:
+- `GET /api/delivery-windows`
+- `GET /api/operating-schedule`
+
+---
+
 ## Components to Build
-- `<OrderStepper />` — Manages step state and renders the correct step
-- `<MealSelector />` — Step 1 meal picker
-- `<ScheduleForm />` — Step 2 schedule configuration
-- `<NotesForm />` — Step 3 notes input
-- `<OrderReview />` — Step 4 summary view
+- `<NotesForm />` — Step 2, single textarea with character count
+- `<OrderReview />` — Step 3 summary with meal list and total
+- `<OrderStepper currentStep={1 | 2 | 3} />` — updated 3-step indicator
+
+---
 
 ## Notes
-- Disable dates in the date picker that correspond to `OperatingSchedule` days where `open: false`
-- Use `react-day-picker` for the date picker
-- Slot capacity check must happen server-side at order creation — do not rely on client-side checks alone
-- Pricing logic is out of scope for MVP; show a placeholder or contact-for-pricing message if needed
+- Pricing: calculate `orderTotal` client-side as `sum(item.price × item.quantity)`
+- After Stripe webhook confirms payment, call `clearOrder()` on `OrderContext`
+- The `/order/success` page should display the order summary pulled from the database using the Stripe session ID

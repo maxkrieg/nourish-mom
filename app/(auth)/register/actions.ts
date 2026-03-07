@@ -10,6 +10,7 @@ const RegisterSchema = z
     email: z.string().email('Please enter a valid email address'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
+    next: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -33,6 +34,7 @@ export async function registerAction(
     email: formData.get('email') as string,
     password: formData.get('password') as string,
     confirmPassword: formData.get('confirmPassword') as string,
+    next: (formData.get('next') as string) || undefined,
   }
 
   const parsed = RegisterSchema.safeParse(raw)
@@ -40,7 +42,7 @@ export async function registerAction(
     return { errors: parsed.error.flatten().fieldErrors }
   }
 
-  const { email, password } = parsed.data
+  const { email, password, next } = parsed.data
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signUp({ email, password })
@@ -68,5 +70,5 @@ export async function registerAction(
     },
   })
 
-  redirect('/menu')
+  redirect(next && next.startsWith('/') ? next : '/menu')
 }

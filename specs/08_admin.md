@@ -1,77 +1,132 @@
 # Domain: Admin Dashboard
-_Always read `00_project_brief.md` first._
+_Always read `00_project_brief.md` and `09_design.md` first._
+
+## Overview
+The admin dashboard gives the Nourish Mom team visibility into incoming orders and control over the menu. Since orders are simple one-time purchases with no scheduling, the admin side is straightforward: manage what's on the menu and manage incoming orders.
 
 ## User Stories
-- As an admin, I want to add a new menu item with a name, description, and dietary tags so that customers have accurate information.
-- As an admin, I want to edit an existing menu item so that I can correct or update its details at any time.
+- As an admin, I want to add a new menu item so that customers can see and order it.
+- As an admin, I want to edit an existing menu item so that I can keep its details accurate.
 - As an admin, I want to mark a menu item as available or unavailable so that customers can only order items the kitchen can fulfill.
-- As an admin, I want to set the days and hours the service operates so that the customer-facing scheduler reflects real availability.
-- As an admin, I want to define available delivery time windows so that customers can only book slots we offer.
-- As an admin, I want to cap the number of orders per delivery slot so that we don't take on more than the kitchen can handle.
-- As an admin, I want to view all incoming orders in a dashboard so that I have a clear picture of what needs to be fulfilled.
+- As an admin, I want to view all incoming orders so that I have a clear picture of what needs to be fulfilled.
 - As an admin, I want to update the status of an order so that the team knows where each order stands.
 
 ## Route Protection
 All `/admin` routes and `/api/admin` routes must verify the authenticated user has `role: ADMIN`. Return 403 if not.
 
-## Pages to Build
+---
 
-### `/admin` — Overview / redirect to `/admin/orders`
+## Admin Layout
+- Fixed left sidebar, white background, `border-r border-neutral-border`, `w-60`
+- "Nourish Mom" wordmark at top of sidebar
+- Nav links:
+  - Orders → `/admin/orders`
+  - Menu → `/admin/menu`
+- Active item: `bg-teal-light text-teal rounded-lg mx-2 px-3 py-2`
+- `<LogoutButton />` at the bottom of the sidebar
+
+### Component
+`<AdminLayout />` in `components/admin/AdminLayout.tsx` — wraps all admin pages via `app/(admin)/layout.tsx`
+
+---
+
+## Pages
+
+### `/admin/orders` — Order Management (default admin page)
+
+**Layout:**
+- Page heading: "Orders"
+- Full-width table of all orders, sorted by `createdAt` descending
+
+**Table columns:**
+- **Date** — formatted `createdAt` (e.g. "Mar 6, 2026")
+- **Customer** — user email
+- **Items** — comma-separated list of meal names and quantities (e.g. "Chicken Soup ×2, Rice Bowl ×1")
+- **Total** — order total in dollars
+- **Status** — colored badge + inline dropdown to update
+- **Notes** — truncated special notes, full text on hover tooltip
+
+**Status badge colors:**
+- Pending: neutral grey
+- Confirmed: teal
+- Preparing: amber
+- Out for Delivery: teal light
+- Delivered: green
+- Cancelled: red
+
+**Status update:**
+- Each row has an inline dropdown showing current status
+- Selecting a new status calls `PATCH /api/admin/orders/[id]`
+- Show success toast on update
+
+**No pagination for MVP** — load all orders.
+
+---
 
 ### `/admin/menu` — Menu Management
-1. Table listing all `MenuItem` records (name, tags, available status)
-2. Toggle availability inline with a switch/button — calls `PATCH /api/admin/menu/[id]`
-3. "Add Item" button opens a modal or navigates to `/admin/menu/new`
-4. "Edit" button per row navigates to `/admin/menu/[id]/edit`
+
+**Layout:**
+- Page heading: "Menu"
+- "Add Item" button top right → navigates to `/admin/menu/new`
+- Table of all menu items
+
+**Table columns:**
+- **Name**
+- **Description** — truncated to one line
+- **Tags** — rendered as small pill badges
+- **Price** — formatted in dollars
+- **Available** — toggle switch, calls `PATCH /api/admin/menu/[id]` on change
+- **Actions** — "Edit" link → `/admin/menu/[id]/edit`
+
+---
 
 ### `/admin/menu/new` and `/admin/menu/[id]/edit` — Menu Item Form
-- Fields: name, description, tags (tag input), available (toggle)
-- On save: `POST /api/admin/menu` (new) or `PATCH /api/admin/menu/[id]` (edit)
-- Redirect back to `/admin/menu` on success
 
-### `/admin/schedule` — Operating Schedule & Delivery Windows
+**Fields:**
+- Name (required, text input)
+- Description (required, textarea)
+- Tags (tag input — type and press enter to add, click × to remove)
+- Price (required, number input in dollars — store as cents in DB)
+- Available (toggle, default true)
 
-**Operating Schedule section:**
-- 7 rows (one per day of week)
-- Toggle each day open/closed — calls `PATCH /api/admin/schedule/[dayOfWeek]`
+**On save:**
+- New: `POST /api/admin/menu`
+- Edit: `PATCH /api/admin/menu/[id]`
+- Redirect to `/admin/menu` on success
+- Show inline validation errors if fields are missing
 
-**Delivery Windows section:**
-- Table listing all `DeliveryWindow` records (label, time range, capacity, active status)
-- Toggle active/inactive inline
-- "Add Window" button opens a form (inline or modal)
-- Fields: label, start time, end time, capacity
-
-### `/admin/orders` — Order Management
-1. Table listing all orders, sorted by `createdAt` descending
-2. Columns: customer email, meals (count), delivery window, frequency, duration, start date, status
-3. Status column shows a dropdown to update order status — calls `PATCH /api/admin/orders/[id]`
-4. No pagination for MVP — load all orders
+---
 
 ## API Routes
 
-### Menu
-- `POST /api/admin/menu` — Create menu item. Body: `{ name, description, tags, available }`
-- `PATCH /api/admin/menu/[id]` — Update menu item. Body: partial `MenuItem`
-- `DELETE /api/admin/menu/[id]` — Delete menu item (only if no associated orders)
-
-### Schedule
-- `PATCH /api/admin/schedule/[dayOfWeek]` — Toggle open/closed. Body: `{ open: boolean }`
-- `POST /api/admin/delivery-windows` — Create window. Body: `{ label, startTime, endTime, capacity }`
-- `PATCH /api/admin/delivery-windows/[id]` — Update window. Body: partial `DeliveryWindow`
-
 ### Orders
-- `GET /api/admin/orders` — Returns all orders with user email, items, and delivery window
-- `PATCH /api/admin/orders/[id]` — Update order status. Body: `{ status: OrderStatus }`
+- `GET /api/admin/orders` — Returns all orders with user email, items (with meal names), and calculated total. Response: `{ data: orders }`
+- `PATCH /api/admin/orders/[id]` — Update order status. Body: `{ status: OrderStatus }`. Response: `{ data: order }`
+
+### Menu
+- `POST /api/admin/menu` — Create menu item. Body: `{ name, description, tags, price, available }`. Price sent as dollars, stored as cents (multiply by 100).
+- `PATCH /api/admin/menu/[id]` — Update menu item. Body: partial `MenuItem`.
+- `DELETE /api/admin/menu/[id]` — Delete item. Only allow if no associated orders exist.
+
+---
 
 ## Components to Build
-- `<AdminLayout />` — Sidebar navigation with links to Orders, Menu, Schedule
-- `<MenuTable />` — Table with inline availability toggle
-- `<MenuItemForm />` — Shared form for create and edit
-- `<ScheduleToggle />` — Day-of-week open/close toggles
-- `<DeliveryWindowTable />` — Table with inline active toggle and add form
-- `<OrdersTable />` — Orders table with status dropdown
+- `<AdminLayout />` — sidebar + content shell
+- `<OrdersTable />` — orders table with inline status dropdown
+- `<StatusBadge />` — colored pill for order status
+- `<MenuTable />` — menu table with availability toggle
+- `<MenuItemForm />` — shared form for create and edit
+- `<TagInput />` — type-to-add, click-to-remove tag input
+
+---
+
+## Seed Data
+Before testing, seed the database with:
+1. At least one admin user — register normally then update `role` to `ADMIN` directly in Supabase Table Editor
+2. At least 3–5 menu items via the admin UI once it's built
 
 ## Notes
-- Use TanStack Table (via shadcn/ui's data table pattern) for the orders and menu tables
-- Seed one admin user directly in the database for initial access — no admin registration UI needed for MVP
-- All admin mutations should show a success/error toast
+- Use TanStack Table via shadcn/ui data table pattern for both tables
+- All admin mutations should show a success or error toast
+- Price is stored in cents (Int) in the DB — always convert to/from dollars in the UI and API layer
+- No delivery windows, operating schedule, or capacity management — those are removed entirely

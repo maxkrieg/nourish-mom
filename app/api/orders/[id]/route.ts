@@ -20,9 +20,7 @@ export async function GET(
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      items: { include: { menuItem: true } },
-      deliveryWindow: true,
-      user: { select: { email: true, role: true } },
+      items: { include: { menuItem: { select: { name: true, price: true } } } },
     },
   })
 
@@ -31,8 +29,7 @@ export async function GET(
   }
 
   // Must be the order owner or an admin
-  if (order.userId !== user.id && order.user.role !== 'ADMIN') {
-    // Check if the requester is admin
+  if (order.userId !== user.id) {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: { role: true },

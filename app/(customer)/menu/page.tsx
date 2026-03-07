@@ -74,7 +74,7 @@ export default async function MenuPage() {
             </p>
           </div>
         ) : (
-          <MenuGrid items={items} />
+          <MenuGrid items={items} isAuthenticated={!!user} />
         )}
       </main>
     </div>

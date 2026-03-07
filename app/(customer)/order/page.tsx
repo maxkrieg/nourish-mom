@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
-import { OrderStepper } from '@/components/order/OrderStepper'
+import { NotesForm } from '@/components/order/NotesForm'
 
 export default async function OrderPage() {
   const supabase = await createClient()
@@ -10,12 +9,6 @@ export default async function OrderPage() {
   } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
-
-  const [menuItems, deliveryWindows, operatingSchedule] = await Promise.all([
-    prisma.menuItem.findMany({ where: { available: true }, orderBy: { name: 'asc' } }),
-    prisma.deliveryWindow.findMany({ where: { active: true }, orderBy: { startTime: 'asc' } }),
-    prisma.operatingSchedule.findMany({ orderBy: { dayOfWeek: 'asc' } }),
-  ])
 
   return (
     <div className="min-h-screen bg-neutral-bg">
@@ -30,11 +23,7 @@ export default async function OrderPage() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-6 py-10">
-        <OrderStepper
-          menuItems={menuItems}
-          deliveryWindows={deliveryWindows}
-          operatingSchedule={operatingSchedule}
-        />
+        <NotesForm />
       </div>
     </div>
   )

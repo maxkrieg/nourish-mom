@@ -2,79 +2,85 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react'
 
-export type SelectedItem = {
+export type OrderItem = {
   menuItemId: string
   name: string
   price: number // cents
   quantity: number
 }
 
-export type OrderState = {
-  // Step 1
-  items: SelectedItem[]
-  // Step 2
-  startDate: Date | undefined
-  deliveryWindowId: string
-  deliveryWindowLabel: string
-  frequency: 'DAILY' | 'THREE_PER_WEEK' | 'TWICE_PER_WEEK' | 'WEEKLY' | ''
-  durationWeeks: number
-  // Step 3
-  specialNotes: string
-}
-
 type OrderContextType = {
-  order: OrderState
-  setItems: (items: SelectedItem[]) => void
-  setSchedule: (schedule: {
-    startDate: Date
-    deliveryWindowId: string
-    deliveryWindowLabel: string
-    frequency: OrderState['frequency']
-    durationWeeks: number
-  }) => void
-  setNotes: (notes: string) => void
-  reset: () => void
-}
-
-const defaultState: OrderState = {
-  items: [],
-  startDate: undefined,
-  deliveryWindowId: '',
-  deliveryWindowLabel: '',
-  frequency: '',
-  durationWeeks: 1,
-  specialNotes: '',
+  items: OrderItem[]
+  specialNotes: string
+  addItem: (item: OrderItem) => void
+  removeItem: (menuItemId: string) => void
+  updateQuantity: (menuItemId: string, quantity: number) => void
+  setSpecialNotes: (notes: string) => void
+  clearOrder: () => void
+  totalItems: number
+  orderTotal: number
 }
 
 const OrderContext = createContext<OrderContextType | null>(null)
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const [order, setOrder] = useState<OrderState>(defaultState)
+  const [items, setItems] = useState<OrderItem[]>([])
+  const [specialNotes, setSpecialNotesState] = useState('')
 
-  function setItems(items: SelectedItem[]) {
-    setOrder((prev) => ({ ...prev, items }))
+  function addItem(item: OrderItem) {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.menuItemId === item.menuItemId)
+      if (existing) {
+        return prev.map((i) =>
+          i.menuItemId === item.menuItemId
+            ? { ...i, quantity: i.quantity + item.quantity }
+            : i
+        )
+      }
+      return [...prev, item]
+    })
   }
 
-  function setSchedule(schedule: {
-    startDate: Date
-    deliveryWindowId: string
-    deliveryWindowLabel: string
-    frequency: OrderState['frequency']
-    durationWeeks: number
-  }) {
-    setOrder((prev) => ({ ...prev, ...schedule }))
+  function removeItem(menuItemId: string) {
+    setItems((prev) => prev.filter((i) => i.menuItemId !== menuItemId))
   }
 
-  function setNotes(specialNotes: string) {
-    setOrder((prev) => ({ ...prev, specialNotes }))
+  function updateQuantity(menuItemId: string, quantity: number) {
+    if (quantity <= 0) {
+      removeItem(menuItemId)
+      return
+    }
+    setItems((prev) =>
+      prev.map((i) => (i.menuItemId === menuItemId ? { ...i, quantity } : i))
+    )
   }
 
-  function reset() {
-    setOrder(defaultState)
+  function setSpecialNotes(notes: string) {
+    setSpecialNotesState(notes)
   }
+
+  function clearOrder() {
+    setItems([])
+    setSpecialNotesState('')
+  }
+
+  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0)
+  const orderTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   return (
-    <OrderContext.Provider value={{ order, setItems, setSchedule, setNotes, reset }}>
+    <OrderContext.Provider
+      value={{
+        items,
+        specialNotes,
+        addItem,
+        removeItem,
+        updateQuantity,
+        setSpecialNotes,
+        clearOrder,
+        totalItems,
+        orderTotal,
+      }}
+    >
       {children}
     </OrderContext.Provider>
   )

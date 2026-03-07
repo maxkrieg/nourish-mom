@@ -1,4 +1,5 @@
 import Footer from '@/components/customer/Footer'
+import { OrderProvider } from '@/components/order/OrderContext'
 
 export default function CustomerLayout({
   children,
@@ -6,9 +7,9 @@ export default function CustomerLayout({
   children: React.ReactNode
 }) {
   return (
-    <>
+    <OrderProvider>
       {children}
       <Footer />
-    </>
+    </OrderProvider>
   )
 }

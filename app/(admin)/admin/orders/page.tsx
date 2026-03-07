@@ -9,10 +9,9 @@ export default async function AdminOrdersPage() {
     orderBy: { createdAt: 'desc' },
     include: {
       user: { select: { email: true } },
-      deliveryWindow: { select: { label: true } },
       items: {
         include: {
-          menuItem: { select: { name: true } },
+          menuItem: { select: { name: true, price: true } },
         },
       },
     },
@@ -21,7 +20,6 @@ export default async function AdminOrdersPage() {
   const serialized = orders.map((o) => ({
     ...o,
     createdAt: o.createdAt.toISOString(),
-    startDate: o.startDate.toISOString(),
   }))
 
   return <OrdersTable orders={serialized} />

@@ -13,10 +13,6 @@ const CheckoutSchema = z.object({
       })
     )
     .min(1),
-  deliveryWindowId: z.string().uuid(),
-  frequency: z.enum(['DAILY', 'THREE_PER_WEEK', 'TWICE_PER_WEEK', 'WEEKLY']),
-  durationWeeks: z.number().int().min(1).max(4),
-  startDate: z.string().datetime(),
   specialNotes: z.string().optional(),
 })
 
@@ -45,8 +41,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const { menuItems, deliveryWindowId, frequency, durationWeeks, startDate, specialNotes } =
-    parsed.data
+  const { menuItems, specialNotes } = parsed.data
 
   // Fetch menu items to build line items
   const menuItemIds = menuItems.map((i) => i.menuItemId)
@@ -86,10 +81,6 @@ export async function POST(request: Request) {
       userId: user.id,
       orderPayload: JSON.stringify({
         menuItems,
-        deliveryWindowId,
-        frequency,
-        durationWeeks,
-        startDate,
         specialNotes: specialNotes ?? '',
       }),
     },

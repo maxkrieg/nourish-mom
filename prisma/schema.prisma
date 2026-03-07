@@ -17,13 +17,6 @@ enum Role {
   ADMIN
 }
 
-enum Frequency {
-  DAILY
-  THREE_PER_WEEK
-  TWICE_PER_WEEK
-  WEEKLY
-}
-
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -67,37 +60,16 @@ model MenuItem {
   updatedAt   DateTime    @updatedAt
 }
 
-model DeliveryWindow {
-  id        String   @id @default(uuid())
-  label     String   // e.g. "Morning (8am–11am)"
-  startTime String   // e.g. "08:00"
-  endTime   String   // e.g. "11:00"
-  capacity  Int      // max orders allowed in this window
-  active    Boolean  @default(true)
-  orders    Order[]
-}
-
-model OperatingSchedule {
-  id        String  @id @default(uuid())
-  dayOfWeek Int     // 0 = Sunday, 6 = Saturday
-  open      Boolean @default(true)
-}
-
 model Order {
-  id               String         @id @default(uuid())
-  userId           String
-  user             User           @relation(fields: [userId], references: [id])
-  deliveryWindowId String
-  deliveryWindow   DeliveryWindow @relation(fields: [deliveryWindowId], references: [id])
-  frequency        Frequency
-  durationWeeks    Int
-  startDate        DateTime
-  status           OrderStatus    @default(PENDING)
-  specialNotes     String?
-  stripePaymentId  String?
-  items            OrderItem[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  status          OrderStatus @default(PENDING)
+  specialNotes    String?
+  stripePaymentId String?
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model OrderItem {

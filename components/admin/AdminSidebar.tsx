@@ -1,15 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ShoppingBag, UtensilsCrossed, CalendarDays, LogOut } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { ShoppingBag, UtensilsCrossed, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
 const navItems = [
   { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/admin/menu', label: 'Menu', icon: UtensilsCrossed },
-  { href: '/admin/schedule', label: 'Schedule', icon: CalendarDays },
 ]
 
 export function AdminSidebar() {

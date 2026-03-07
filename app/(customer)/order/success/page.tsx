@@ -3,13 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { CheckCircle } from 'lucide-react'
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  DAILY: 'Daily',
-  THREE_PER_WEEK: '3× per week',
-  TWICE_PER_WEEK: 'Twice per week',
-  WEEKLY: 'Weekly',
-}
-
 interface Props {
   searchParams: Promise<{ session_id?: string }>
 }
@@ -24,13 +17,12 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
 
   if (!user) redirect('/login')
 
-  if (!session_id) redirect('/order')
+  if (!session_id) redirect('/menu')
 
   const order = await prisma.order.findFirst({
     where: { stripePaymentId: session_id, userId: user.id },
     include: {
       items: { include: { menuItem: { select: { name: true, price: true } } } },
-      deliveryWindow: { select: { label: true } },
     },
   })
 
@@ -104,7 +96,7 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
               >
                 <div>
                   <p className="text-sm font-medium text-neutral-text">{item.menuItem.name}</p>
-                  <p className="text-xs text-neutral-muted">Qty: {item.quantity}</p>
+                  <p className="text-xs text-neutral-muted">×{item.quantity}</p>
                 </div>
                 <p className="text-sm font-semibold text-neutral-text">
                   ${((item.menuItem.price * item.quantity) / 100).toFixed(2)}
@@ -114,46 +106,11 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
           </ul>
           <div className="flex items-center justify-between border-t border-neutral-border pt-3">
             <span className="text-sm font-semibold text-neutral-text">Total paid</span>
-            <span className="text-sm font-semibold text-teal">${(subtotal / 100).toFixed(2)}</span>
+            <span className="text-sm font-bold text-teal">${(subtotal / 100).toFixed(2)}</span>
           </div>
         </section>
 
-        {/* Schedule */}
-        <section className="bg-white rounded-2xl border border-neutral-border shadow-sm p-6 flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-neutral-text uppercase tracking-widest">
-            Delivery Schedule
-          </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <div>
-              <p className="text-xs text-neutral-muted">Start date</p>
-              <p className="font-medium text-neutral-text">
-                {order.startDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-muted">Delivery window</p>
-              <p className="font-medium text-neutral-text">{order.deliveryWindow.label}</p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-muted">Frequency</p>
-              <p className="font-medium text-neutral-text">
-                {FREQUENCY_LABELS[order.frequency] ?? order.frequency}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-muted">Duration</p>
-              <p className="font-medium text-neutral-text">
-                {order.durationWeeks} {order.durationWeeks === 1 ? 'week' : 'weeks'}
-              </p>
-            </div>
-          </div>
-        </section>
-
+        {/* Special notes */}
         {order.specialNotes && (
           <section className="bg-white rounded-2xl border border-neutral-border shadow-sm p-6 flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-neutral-text uppercase tracking-widest">

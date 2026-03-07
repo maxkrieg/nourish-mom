@@ -10,8 +10,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     include: {
       user: { select: { email: true } },
-      items: { include: { menuItem: { select: { name: true } } } },
-      deliveryWindow: { select: { label: true } },
+      items: { include: { menuItem: { select: { name: true, price: true } } } },
     },
   })
 

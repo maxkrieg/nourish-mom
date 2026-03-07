@@ -16,12 +16,9 @@ type OrderRow = {
   id: string
   status: OrderStatus
   createdAt: string
-  frequency: string
-  durationWeeks: number
-  startDate: string
+  specialNotes?: string | null
   user: { email: string }
-  deliveryWindow: { label: string }
-  items: { quantity: number; menuItem: { name: string } }[]
+  items: { quantity: number; menuItem: { name: string; price: number } }[]
 }
 
 interface OrdersTableProps {
@@ -84,55 +81,65 @@ export function OrdersTable({ orders: initial }: OrdersTableProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-border bg-neutral-bg">
+                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Date</th>
                   <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Customer</th>
-                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Meals</th>
-                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Delivery Window</th>
-                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Frequency</th>
-                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Duration</th>
-                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Start Date</th>
+                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Items</th>
+                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Total</th>
                   <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Status</th>
+                  <th className="text-left px-6 py-3 font-semibold text-neutral-muted text-xs tracking-widest uppercase whitespace-nowrap">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-border">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-neutral-bg transition-colors">
-                    <td className="px-6 py-4 text-neutral-text font-medium whitespace-nowrap">
-                      {order.user.email}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-muted">
-                      {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-muted whitespace-nowrap">
-                      {order.deliveryWindow.label}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-muted whitespace-nowrap">
-                      {order.frequency.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-muted whitespace-nowrap">
-                      {order.durationWeeks}w
-                    </td>
-                    <td className="px-6 py-4 text-neutral-muted whitespace-nowrap">
-                      {new Date(order.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Select
-                        value={order.status}
-                        onValueChange={(val) => updateStatus(order.id, val as OrderStatus)}
-                      >
-                        <SelectTrigger className={`h-8 w-44 rounded-full border-0 text-xs font-medium px-3 ${STATUS_COLORS[order.status]}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          {(Object.keys(STATUS_LABELS) as OrderStatus[]).map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs rounded-lg">
-                              {STATUS_LABELS[s]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((order) => {
+                  const total = order.items.reduce(
+                    (sum, i) => sum + i.menuItem.price * i.quantity,
+                    0
+                  )
+                  return (
+                    <tr key={order.id} className="hover:bg-neutral-bg transition-colors">
+                      <td className="px-6 py-4 text-neutral-muted whitespace-nowrap">
+                        {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4 text-neutral-text font-medium whitespace-nowrap">
+                        {order.user.email}
+                      </td>
+                      <td className="px-6 py-4 text-neutral-muted max-w-xs">
+                        <span className="truncate block">
+                          {order.items.map((i) => `${i.menuItem.name} ×${i.quantity}`).join(', ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-text font-medium whitespace-nowrap">
+                        ${(total / 100).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Select
+                          value={order.status}
+                          onValueChange={(val) => updateStatus(order.id, val as OrderStatus)}
+                        >
+                          <SelectTrigger className={`h-8 w-44 rounded-full border-0 text-xs font-medium px-3 ${STATUS_COLORS[order.status]}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            {(Object.keys(STATUS_LABELS) as OrderStatus[]).map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs rounded-lg">
+                                {STATUS_LABELS[s]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-muted max-w-[200px]">
+                        {order.specialNotes ? (
+                          <span title={order.specialNotes} className="truncate block cursor-default">
+                            {order.specialNotes}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-muted/50">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
