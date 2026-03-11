@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { ProfileForm } from '@/components/customer/ProfileForm'
+import { AccountTabs } from '@/components/customer/AccountTabs'
 import { LogoutButton } from '@/components/auth/LogoutButton'
 import { User } from 'lucide-react'
+import type { OrderCardData } from '@/components/customer/OrderCard'
 
 export default async function AccountPage() {
   const supabase = await createClient()
@@ -11,9 +12,38 @@ export default async function AccountPage() {
 
   if (!user) redirect('/login')
 
-  const profile = await prisma.profile.findUnique({
-    where: { userId: user.id },
-  })
+  const [profile, rawOrders] = await Promise.all([
+    prisma.profile.findUnique({
+      where: { userId: user.id },
+    }),
+    prisma.order.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: {
+          include: {
+            menuItem: { select: { name: true, price: true } },
+          },
+        },
+      },
+    }),
+  ])
+
+  // Serialize dates before passing to client components
+  const orders: OrderCardData[] = rawOrders.map((order) => ({
+    id: order.id,
+    status: order.status,
+    createdAt: order.createdAt.toISOString(),
+    specialNotes: order.specialNotes,
+    items: order.items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      menuItem: {
+        name: item.menuItem.name,
+        price: item.menuItem.price,
+      },
+    })),
+  }))
 
   return (
     <div className="min-h-screen bg-neutral-bg">
@@ -43,16 +73,13 @@ export default async function AccountPage() {
             </div>
             <div>
               <h1 className="text-[28px] font-bold tracking-tight text-neutral-text">
-                Your profile
+                Your account
               </h1>
               <p className="text-sm text-neutral-muted">{user.email}</p>
             </div>
           </div>
 
-          {/* Profile form card */}
-          <div className="bg-white rounded-2xl border border-neutral-border shadow-sm p-6">
-            <ProfileForm profile={profile} />
-          </div>
+          <AccountTabs orders={orders} profile={profile} />
         </div>
       </main>
     </div>
