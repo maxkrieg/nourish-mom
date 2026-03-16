@@ -29,16 +29,28 @@ rm -rf .next && npx tsc --noEmit
 
 ```
 app/
-  (admin)/admin/       # Admin dashboard — role-gated layout
+  (admin)/admin/       # Admin dashboard — role-gated layout (AdminSidebar)
   (auth)/              # Login + register — no shared layout
   (customer)/          # Customer-facing app — wrapped in OrderProvider + Footer
+    account/           # Customer profile page
+    menu/              # Step 1 — meal selection
+    order/             # Step 2 (notes) + Step 3 (review) + success page
   api/                 # API route handlers
+    admin/menu/        # POST, PATCH menu items (admin)
+    admin/orders/      # GET, PATCH orders (admin)
+    auth/logout/       # Logout
+    account/profile/   # PATCH profile
+    checkout/          # POST — create Stripe Checkout Session
+    menu/              # GET menu items
+    orders/            # POST create order; GET by id
+    webhooks/stripe/   # POST — Stripe webhook; creates Order on payment success
   globals.css          # Tailwind v4 @theme inline — all design tokens live here
   layout.tsx           # Root layout — Inter font, Toaster
+  page.tsx             # Landing page (Hero, HowItWorks, WhyNourishMom, CTABanner)
 components/
-  admin/               # Admin-only UI (table, form, sidebar)
+  admin/               # Admin-only UI (AdminSidebar, MenuTable, MenuItemForm, OrdersTable)
   auth/                # Auth forms + logout
-  customer/            # Customer-facing UI (menu, order summary, profile)
+  customer/            # Customer-facing UI (menu, order summary, profile, landing page sections)
   order/               # Order flow (context, step indicator, notes, review)
   ui/                  # shadcn/ui primitives — do not edit directly
 lib/
@@ -73,6 +85,9 @@ specs/                 # Markdown spec files — read these before working on a 
 | Validation | Zod v4 |
 | Toasts | sonner |
 | Icons | lucide-react (stroke-width 1.5) |
+| Tables | @tanstack/react-table v8 (admin data tables) |
+| Dark mode | next-themes |
+| Animations | tw-animate-css |
 
 **Important Tailwind note:** There is no `tailwind.config.ts`. All theme tokens (`bg-teal`, `text-neutral-muted`, etc.) are defined in `app/globals.css` using `@theme inline { ... }`. Do not create a `tailwind.config.ts`.
 
@@ -178,9 +193,10 @@ The order flow is three steps, no delivery windows, no frequency, no start dates
 
 ## Key Rules
 
-- Read the relevant spec in `specs/` before working on a domain (menu → `04_menu.md`, ordering → `05_ordering.md`, admin → `08_admin.md`, design tokens → `09_design.md`).
+- Read the relevant spec in `specs/` before working on a domain (menu → `04_menu.md`, ordering → `05_ordering.md`, admin → `08_admin.md`, design tokens → `09_design.md`, landing page → `10_landing_page.md`, navigation → `11_navigation_flow.md`).
 - Never hardcode secrets — always use environment variables.
 - Do not build anything outside the spec without asking the user first.
 - `proxy.ts` is the Next.js 16 middleware file. Never create a `middleware.ts` — having both causes a build error.
 - The Prisma client is generated to `lib/generated/prisma/` (non-default location). Always import from there.
 - Ghost LSP errors referencing deleted files (`MealSelector.tsx`, `ScheduleForm.tsx`, `OrderStepper.tsx`) are stale. Confirm with `ls` before acting on any "file not found" error.
+- Order creation happens inside the Stripe webhook handler (`app/api/webhooks/stripe/route.ts`), not at checkout initiation. Do not create orders in `/api/checkout`.

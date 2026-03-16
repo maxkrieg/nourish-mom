@@ -47,7 +47,7 @@ interface OrderCardProps {
 
 export function OrderCard({ order }: OrderCardProps) {
   const isActive = ACTIVE_STATUSES.includes(order.status)
-  const [open, setOpen] = useState(isActive)
+  const [open, setOpen] = useState(false)
 
   const subtotal = order.items.reduce(
     (sum, i) => sum + i.menuItem.price * i.quantity,
