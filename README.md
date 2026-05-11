@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌿 Nourish Mom
 
-## Getting Started
+**Postpartum-friendly meal delivery for new mothers.**
 
-First, run the development server:
+Nourish Mom is a full-stack web application for a food delivery service designed specifically for postpartum mothers and their caregivers. Customers browse a curated menu, build an order, and pay securely — meals are delivered fresh to their door.
+
+---
+
+## ✨ Features
+
+### 👩 Customer-Facing
+
+- Browse a postpartum-friendly menu with dietary tag filtering
+- 3-step order flow: select meals → add kitchen notes → review and pay
+- Secure checkout via Stripe with email confirmation on payment
+- Customer profile for managing delivery address, dietary restrictions, and allergies
+
+### 🔧 Admin Dashboard
+
+- View and manage all incoming orders with inline status updates
+- Full menu management — add, edit, and toggle availability of items
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 — App Router |
+| Language | TypeScript 5 — strict mode |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Database | PostgreSQL via Supabase |
+| ORM | Prisma 7 |
+| Auth | Supabase Auth (email/password) |
+| Payments | Stripe — Checkout Sessions + webhooks |
+| Email | Resend |
+| Validation | Zod v4 |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- A Supabase project (PostgreSQL + Auth)
+- A Stripe account
+- A Resend account
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+
+Create a `.env.local` file in the project root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+STRIPE_SECRET_KEY=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_WEBHOOK_SECRET=
+RESEND_API_KEY=
+```
+
+### 3. Push the database schema
+
+```bash
+npx prisma db push
+npx prisma generate
+```
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Create an admin user
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Register via `/register`.
+2. In the Supabase Table Editor, set the user's `role` to `ADMIN`.
+3. Log in and visit `/admin`.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠️ Development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev        # Start dev server (Turbopack)
+npm run build      # Production build
+npm run lint       # ESLint
+npx tsc --noEmit   # Type-check only
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# After any schema change:
+npx prisma db push && npx prisma generate
+```
 
-## Deploy on Vercel
+To test the full payment flow locally, forward Stripe webhook events to your dev server:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Copy the printed webhook signing secret into `STRIPE_WEBHOOK_SECRET` in `.env.local`.
